@@ -1,0 +1,13 @@
+{
+  "name": "izn-partners",
+  "version": "1.0.0",
+  "description": "iZN - White-label AI research, development and delivery",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  },
+  "keywords": ["ai", "white-label", "partners"],
+  "author": "Torikul Islam Naeem",
+  "license": "ISC"
+}

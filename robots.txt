@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://izn-partners.vercel.app/sitemap.xml
