@@ -1,7 +1,11 @@
 {
-  "name": "izn-partners",
+  "name": "ai-agency-website",
   "version": "1.0.0",
-  "description": "iZN - White-label AI research, development and delivery",
+  "description": "AI Agency & Partnership Website - a white-label AI services website for iZN Partners",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nazzmullxd/ai-agency-website.git"
+  },
   "main": "index.html",
   "scripts": {
     "start": "npx serve .",

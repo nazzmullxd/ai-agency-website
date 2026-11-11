@@ -1,6 +1,8 @@
-# iZN Partners
+# AI Agency & Partnership Website
 
-White-label AI research, development, and delivery website.
+A responsive website for iZN Partners, showcasing white-label AI research, development, and delivery services.
+
+- **Repository**: [nazzmullxd/ai-agency-website](https://github.com/nazzmullxd/ai-agency-website)
 
 - **Live Site**: [https://izn-partners.vercel.app](https://izn-partners.vercel.app)
 - **Vercel Project**: [https://vercel.com/naeems-projects-f5e70b0e/izn-partners](https://vercel.com/naeems-projects-f5e70b0e/izn-partners)
