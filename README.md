@@ -27,6 +27,8 @@ A responsive website for iZN Partners, showcasing white-label AI research, devel
 ├── 404.html                        # Not found page
 ├── styles.css                      # Global styles & layout
 ├── app.js                          # Client-side interactions & demo logic
+├── workflow.mjs                    # Browser-local extraction and validation
+├── tests/workflow.test.mjs          # Document workflow checks
 ├── favicon.svg                     # Favicon
 ├── fonts/                          # DM Sans & Manrope web fonts
 │   ├── fonts.css
@@ -45,4 +47,16 @@ npm run dev
 
 # Or with Python:
 python -m http.server 3000
+```
+
+The document demo runs entirely in the browser with fictional examples. It extracts labelled fields, flags missing values for review, validates approved records, and downloads JSON without an API or database.
+
+The contact page's partnership brief generator requires a separate `/api/brief` endpoint, which is not included in this static repository.
+
+## Validation
+
+Run the document workflow checks with Node.js:
+
+```bash
+npm test
 ```

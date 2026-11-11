@@ -24,34 +24,37 @@ if($('.filter-bar')){
  filter(new URLSearchParams(location.search).get('category')||'All');
 }
 if($('#document-text')){
+ const workflow=import('/workflow.mjs');
  const samples={design:'Supplier: Northfield Studio\nInvoice: INV-1042\nDate: 12 October 2026\n\nDescription: Design services\nSubtotal: GBP 1000.00\nTax: GBP 200.00\nTotal: GBP 1200.00\n\nFictional example for demonstration.',consulting:'Supplier: Westbridge Consulting\nInvoice: WC-2026-081\nDate: 12 October 2026\n\nDescription: Process consulting\nTotal: USD 2450.50\n\nFictional example for demonstration.',incomplete:'Supplier: Example Services\nInvoice: ES-091\nDate: 12 October 2026\n\nDescription: Advisory workshop\nTotal: To be confirmed\n\nFictional example with missing information.'};
  const source=$('#document-text'),sample=$('#sample'),extract=$('#extract-button'),review=$('#review-form'),empty=$('#review-empty'),result=$('#record-result'),message=$('#demo-message'),status=$('#record-status');
  const submit=$('button[type="submit"]',review);
- let revision=0,controller=null,record=null;
+ let revision=0,record=null;
  const extractLabel=extract.innerHTML,submitLabel=submit.innerHTML;
- function stage(n){$$('[data-stage]').forEach(el=>el.classList.toggle('active',Number(el.dataset.stage)<=n));}
+ function stage(n,finished=false){$$('[data-stage]').forEach(el=>{const index=Number(el.dataset.stage),complete=index<n||(finished&&index===n);el.classList.toggle('active',index===n);el.classList.toggle('complete',complete);index===n?el.setAttribute('aria-current','step'):el.removeAttribute('aria-current');$('.stage-marker',el).textContent=complete?'✓':String(index+1).padStart(2,'0');el.setAttribute('aria-label',`${$('.stage-name',el).textContent}: ${complete?'complete':index===n?'current step':'upcoming'}`);});}
+ function panelState(state,busy=false){const panel=$('.review-panel');panel.dataset.state=state;panel.setAttribute('aria-busy',String(busy));}
+ function clearInvalid(){$$('[aria-invalid]',review).forEach(el=>{el.removeAttribute('aria-invalid');el.removeAttribute('aria-describedby');});}
  function enable(){extract.disabled=false;extract.innerHTML=extractLabel;submit.disabled=false;submit.innerHTML=submitLabel;source.disabled=false;sample.disabled=false;$$('input,select',review).forEach(el=>el.disabled=false);}
- function clearReview(){revision++;controller?.abort();controller=null;record=null;review.reset();review.hidden=true;result.hidden=true;empty.hidden=false;enable();stage(0);status.textContent='WAITING FOR INPUT';announce(message,'');}
+ function clearReview(){revision++;record=null;review.reset();clearInvalid();review.hidden=true;result.hidden=true;empty.hidden=false;enable();stage(0);panelState('input');status.textContent='WAITING FOR INPUT';announce(message,'');}
  function reset(){clearReview();sample.value='design';source.value=samples.design;}
  source.addEventListener('input',clearReview);
  sample.addEventListener('change',()=>{clearReview();source.value=samples[sample.value];});
  $('#reset-demo').addEventListener('click',()=>{reset();source.focus({preventScroll:true});});
  extract.addEventListener('click',async()=>{
-  clearReview();const current=revision;controller=new AbortController();extract.disabled=true;extract.textContent='Extracting…';source.disabled=true;sample.disabled=true;stage(1);status.textContent='PROCESSING';announce(message,'Reading the labelled fields…');
-  try{const data=await post('/api/workflow',{action:'extract',text:source.value},controller);if(current!==revision)return;
-   Object.entries(data.fields).forEach(([key,value])=>{review.elements[key].value=value;});empty.hidden=true;review.hidden=false;stage(2);status.textContent=data.missing.length?'NEEDS YOUR ATTENTION':'READY TO REVIEW';announce(message,data.message);review.elements.supplier.focus({preventScroll:true});if(innerWidth<=760)reveal(review);
-  }catch(error){if(current!==revision)return;stage(0);status.textContent='TRY AGAIN';announce(message,error.message,true);}finally{if(current===revision)enable();}
+  clearReview();const current=revision;extract.disabled=true;extract.textContent='Extracting…';source.disabled=true;sample.disabled=true;stage(1);panelState('processing',true);status.textContent='PROCESSING';announce(message,'Reading the labelled fields…');
+  try{await new Promise(requestAnimationFrame);const data=(await workflow).extractDocument(source.value);if(current!==revision)return;
+   Object.entries(data.fields).forEach(([key,value])=>{review.elements[key].value=value;});data.missing.forEach(key=>{review.elements[key].setAttribute('aria-invalid','true');review.elements[key].setAttribute('aria-describedby','demo-message');});empty.hidden=true;review.hidden=false;stage(2);panelState(data.missing.length?'attention':'review');status.textContent=data.missing.length?'NEEDS YOUR ATTENTION':'READY TO REVIEW';announce(message,data.message);
+  }catch(error){if(current!==revision)return;stage(0);panelState('attention');status.textContent='TRY AGAIN';announce(message,error.message,true);}finally{if(current===revision){enable();if(!review.hidden){review.elements.supplier.focus({preventScroll:true});if(innerWidth<=760)reveal(review);}else if(message.classList.contains('error')){source.focus({preventScroll:true});if(innerWidth<=760)reveal(source);}}}
  });
- review.addEventListener('input',event=>{if(event.target.name!=='approved')review.elements.approved.checked=false;});
+ review.addEventListener('input',event=>{if(event.target.name!=='approved'){review.elements.approved.checked=false;event.target.removeAttribute('aria-invalid');event.target.removeAttribute('aria-describedby');}});
  review.addEventListener('submit',async event=>{
-  event.preventDefault();if(!review.reportValidity())return;const current=++revision;controller?.abort();controller=new AbortController();
+  event.preventDefault();if(!review.reportValidity())return;const current=++revision;
   const fields=Object.fromEntries(['supplier','invoice','amount','currency'].map(key=>[key,review.elements[key].value]));
   const approved=review.elements.approved.checked;
-  $$('input,select',review).forEach(el=>el.disabled=true);source.disabled=true;sample.disabled=true;extract.disabled=true;submit.disabled=true;submit.textContent='Validating…';announce(message,'Checking the reviewed record…');
-  try{const data=await post('/api/workflow',{action:'validate',fields,approved},controller);if(current!==revision)return;record=data.record;$('#record-json').textContent=JSON.stringify(record,null,2);review.hidden=true;result.hidden=false;stage(3);status.textContent='REVIEW COMPLETE';announce(message,'Record validated. No external system was updated.');$('#download-record').focus({preventScroll:true});if(innerWidth<=760)reveal(result);
-  }catch(error){if(current!==revision)return;announce(message,error.message,true);}finally{if(current===revision)enable();}
+  $$('input,select',review).forEach(el=>el.disabled=true);source.disabled=true;sample.disabled=true;extract.disabled=true;submit.disabled=true;submit.textContent='Validating…';stage(3);panelState('processing',true);status.textContent='VALIDATING';announce(message,'Checking the reviewed record…');
+  try{await new Promise(requestAnimationFrame);const data=(await workflow).validateRecord(fields,approved);if(current!==revision)return;record=data.record;$('#record-json').textContent=JSON.stringify(record,null,2);review.hidden=true;result.hidden=false;stage(3,true);panelState('complete');status.textContent='REVIEW COMPLETE';announce(message,'Record validated. No external system was updated.');$('#download-record').focus({preventScroll:true});if(innerWidth<=760)reveal(result);
+  }catch(error){if(current!==revision)return;stage(2);panelState('attention');status.textContent='NEEDS YOUR ATTENTION';announce(message,error.message,true);}finally{if(current===revision){enable();$('.review-panel').setAttribute('aria-busy','false');}}
  });
- $('#edit-record').addEventListener('click',()=>{record=null;result.hidden=true;review.hidden=false;review.elements.approved.checked=false;stage(2);status.textContent='READY TO REVIEW';announce(message,'Review your changes and approve again.');review.elements.supplier.focus({preventScroll:true});});
+ $('#edit-record').addEventListener('click',()=>{record=null;result.hidden=true;review.hidden=false;review.elements.approved.checked=false;stage(2);panelState('review');status.textContent='READY TO REVIEW';announce(message,'Review your changes and approve again.');review.elements.supplier.focus({preventScroll:true});if(innerWidth<=760)reveal(review);});
  $('#download-record').addEventListener('click',()=>{if(record)download(JSON.stringify(record,null,2),'izn-reviewed-record.json','application/json');});
  reset();
 }
